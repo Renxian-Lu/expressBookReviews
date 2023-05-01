@@ -32,20 +32,23 @@ const authenticatedUser = (username,password)=>{ //returns boolean
 //only registered users can login
 regd_users.post("/login", (req,res) => {
   //Write your code here
-  const username = req.body.username;
-  const password = req.body.password;
+//   const username = req.body.username;
+//   const password = req.body.password;
+  const {username, password} = req.body;
 
   if(!username || !password){
       return res.status(404).json({message:"Error logging in"});
   }
   if(authenticatedUser(username, password)){
-      let accessToken = jwt.sign({
-          data: password
-      }, 'access', {expiresIn: 60*60});
+        let accessToken = jwt.sign({
+            data: password
+        }, 'access', {expiresIn: 60*60});
 
-      req.session.authentication = {
-          accessToken, username
-      }
+        req.session.authentication = {
+            accessToken, username
+        }
+        
+    // console.log(req.session.authentication);
     return res.status(200).send("User successfully logged in");
   }else{
     return res.status(300).json({message: "Invalid Login. Check username and password"});
@@ -56,9 +59,38 @@ regd_users.post("/login", (req,res) => {
 // Add a book review
 regd_users.put("/auth/review/:isbn", (req, res) => {
   //Write your code here
-  return res.status(300).json({message: "Yet to be implemented"});
+  const isbn = req.params.isbn;
+  const book = books[isbn];
+  const review = req.query.review;
+  const {username} = req.session.authentication;
+
+  if(book){
+    if(book.reviews[username]){
+        book.reviews[username] = review;
+        return res.json({ message: `Review successfully updated.` })
+    }
+    book.reviews[username] = review;
+    return res.status(200).json({message: `The review for the book with ISBN ${isbn} has benn added/updated.`});
+  }
+  return res.status(404).json({message: "Invalid ISBN"});
 });
+
+// delete a book review
+regd_users.delete("/auth/review/:isbn", (req, res)=>{
+    const {isbn} = req.params;
+    const {username} = req.session.authentication;
+
+    const book = books[isbn];
+    console.log(book.reviews);
+
+    if(book && book.reviews[username]){
+        delete book.reviews[username];
+        return res.json({ message: `Review successfully deleted.` });
+    }
+    return res.status(403).json({ message: `Book with ISBN '${isbn}' could not be found.` });
+})
 
 module.exports.authenticated = regd_users;
 module.exports.isValid = isValid;
 module.exports.users = users;
+module.exports.authenticatedUser = authenticatedUser;
